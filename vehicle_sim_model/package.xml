@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>vehicle_sim_model</name>
   <version>1.13.0</version>
   <description>The vehicle_sim_model package</description>
@@ -13,8 +13,10 @@
 
   <depend>roscpp</depend>
   <depend>roslint</depend>
-  <exec_depend>python-numpy</exec_depend>
-  <exec_depend>python-pandas</exec_depend>
+  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-numpy</exec_depend>
+  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-pandas</exec_depend>
+  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-numpy</exec_depend>
+  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-pandas</exec_depend>
   <test_depend>rostest</test_depend>
   <test_depend>rosunit</test_depend>
 </package>
