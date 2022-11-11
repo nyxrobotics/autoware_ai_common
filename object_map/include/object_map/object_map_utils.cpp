@@ -159,7 +159,8 @@ namespace object_map
         cv_points.emplace_back(cv::Point(cv_x, cv_y));
       }
 
-      cv::fillConvexPoly(filled_image, cv_points.data(), cv_points.size(), cv::Scalar(in_fill_color));
+      std::vector<std::vector<cv::Point>> cv_area_points{cv_points};
+      cv::fillPoly(filled_image, cv_area_points, cv::Scalar(in_fill_color));
     }
 
     // convert to ROS msg
