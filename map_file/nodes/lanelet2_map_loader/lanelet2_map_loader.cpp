@@ -104,7 +104,7 @@ int main(int argc, char** argv)
   std::string format_version, map_version;
   lanelet::io_handlers::AutowareOsmParser::parseVersions(lanelet2_file_path, &format_version, &map_version);
 
-  ros::Publisher map_bin_pub = nh.advertise<autoware_lanelet2_msgs::MapBin>("/lanelet_map_bin", 1, true);
+  ros::Publisher map_bin_pub = nh.advertise<autoware_lanelet2_msgs::MapBin>("lanelet_map_bin", 1, true);
   autoware_lanelet2_msgs::MapBin map_bin_msg;
   map_bin_msg.header.stamp = ros::Time::now();
   map_bin_msg.header.frame_id = "map";
