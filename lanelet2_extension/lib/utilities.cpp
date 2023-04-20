@@ -308,24 +308,62 @@ std::vector<lanelet::BasicPoint3d> resamplePoints(const lanelet::ConstLineString
   return resampled_points;
 }
 
+int pairLanes(std::vector<lanelet::BasicPoint3d>& left_points_out, std::vector<lanelet::BasicPoint3d>& right_points_out,
+              const lanelet::ConstLineString3d& left_line_string, const lanelet::ConstLineString3d& right_line_string)
+{
+  int total_index = 0;
+  const int left_num = left_line_string.size();
+  const int right_num = right_line_string.size();
+  // Create each segment
+  left_points_out.clear();
+  right_points_out.clear();
+  left_points_out.push_back(left_line_string[0].basicPoint());
+  right_points_out.push_back(right_line_string[0].basicPoint());
+  total_index++;
+  int right_idx = 0;
+  for (int left_idx = 1; left_idx < left_num - 1; left_idx++)
+  {
+    double left2right_distance = DBL_MAX;
+    const int search_size = 10;
+    int nearest_offset = 0;
+    for (int right_offset = -1; right_offset < search_size; right_offset++)
+    {
+      // Search nearest right point to pair
+      if (right_idx + right_offset > 0 && right_idx + right_offset < right_num - 1)
+      {
+        Eigen::Vector3d left2ringt_vector =
+            right_line_string[right_idx + right_offset].basicPoint() - left_line_string[left_idx].basicPoint();
+        if (left2ringt_vector.norm() < left2right_distance)
+        {
+          left2right_distance = left2ringt_vector.norm();
+          nearest_offset = right_offset;
+        }
+        else
+        {
+          continue;
+        }
+      }
+    }
+    right_idx += nearest_offset;
+    left_points_out.push_back(left_line_string[left_idx].basicPoint());
+    right_points_out.push_back(right_line_string[right_idx].basicPoint());
+    total_index++;
+  }
+  left_points_out.push_back(left_line_string[left_num - 1].basicPoint());
+  right_points_out.push_back(right_line_string[right_num - 1].basicPoint());
+  total_index++;
+  return total_index;
+}
+
 lanelet::LineString3d generateFineCenterline(const lanelet::ConstLanelet& lanelet_obj)
 {
-  // Parameter
-  constexpr double point_interval = 1.0;  // [m]
-
-  // Get length of longer border
-  const double left_length = lanelet::geometry::length(lanelet_obj.leftBound());
-  const double right_length = lanelet::geometry::length(lanelet_obj.rightBound());
-  const double longer_distance = (left_length > right_length) ? left_length : right_length;
-  const int num_segments = std::max(static_cast<int>(ceil(longer_distance / point_interval)), 1);
-
   // Resample points
-  const auto left_points = resamplePoints(lanelet_obj.leftBound(), num_segments);
-  const auto right_points = resamplePoints(lanelet_obj.rightBound(), num_segments);
+  lanelet::BasicPoints3d left_points, right_points;
+  const int num_segments = pairLanes(left_points, right_points, lanelet_obj.leftBound(), lanelet_obj.rightBound());
 
   // Create centerline
   lanelet::LineString3d centerline(lanelet::utils::getId());
-  for (int i = 0; i < num_segments + 1; i++)
+  for (int i = 0; i < num_segments; i++)
   {
     // Add ID for the average point of left and right
     const auto center_basic_point = (right_points.at(i) + left_points.at(i)) / 2;
