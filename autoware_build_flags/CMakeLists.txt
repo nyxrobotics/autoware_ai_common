@@ -2,5 +2,9 @@ cmake_minimum_required(VERSION 2.8.3)
 project(autoware_build_flags)
 
 find_package(catkin REQUIRED)
-
+add_compile_options(-std=c++14)
+set(CMAKE_C_STANDARD 14)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 catkin_package(CFG_EXTRAS autoware_build_flags-extras.cmake)
