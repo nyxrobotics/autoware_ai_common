@@ -395,6 +395,98 @@ int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::P
   return (!cand_idx.isOK()) ? not_cand_idx.result() : cand_idx.result();
 }
 
+int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
+{
+  int next_index = current_index;
+  if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error ||
+      current_index > current_path.waypoints.size() - 1)
+  {
+    return -1;
+  }
+
+  if (current_index < 0)
+  {
+    // Initialize current_waypoint_number_
+    int closest_waypoint = -1;
+    double min_distance = std::numeric_limits<double>::max();
+    double current_direction = tf::getYaw(current_pose.orientation);
+    for (int i = 1; i < current_path.waypoints.size(); i++)
+    {
+      double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+
+      double waypoint_direction = tf::getYaw(current_path.waypoints[i].pose.pose.orientation);
+      double angle_diff = waypoint_direction - current_direction;
+      if (angle_diff > M_PI)
+        angle_diff -= 2 * M_PI;
+      if (angle_diff < -M_PI)
+        angle_diff += 2 * M_PI;
+
+      if (distance < min_distance && fabs(angle_diff) < M_PI / 2)
+      {
+        min_distance = distance;
+        closest_waypoint = i;
+      }
+    }
+    if (closest_waypoint != -1)
+    {
+      next_index = closest_waypoint;
+      return next_index;
+    }
+    // If there is no waypoint in the forward direction, find the closest waypoint
+    for (int i = 1; i < current_path.waypoints.size(); i++)
+    {
+      double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+      if (distance < min_distance)
+      {
+        min_distance = distance;
+        closest_waypoint = i;
+      }
+    }
+    if (closest_waypoint != -1)
+    {
+      next_index = closest_waypoint;
+      return next_index;
+    }
+    return -1;
+  }
+  else
+  {
+    // Update current_waypoint_number_
+    const int path_size = static_cast<int>(current_path.waypoints.size());
+    // If no waypoints are given, do nothing.
+    if (path_size == 0)
+    {
+      next_index = -1;
+      return next_index;
+    }
+    // Start searching from the current waypoint number
+    int start_index = current_index;
+    if (start_index < 0)
+    {
+      start_index = 0;  // If uninitialized, start from the beginning
+    }
+    double prev_distance =
+        getPlaneDistance(current_path.waypoints.at(start_index).pose.pose.position, current_pose.position);
+    // Loop to find the index where the distance first starts to increase
+    for (int i = start_index + 1; i < path_size; i++)
+    {
+      double current_distance =
+          getPlaneDistance(current_path.waypoints.at(i).pose.pose.position, current_pose.position);
+      // If the distance increases, set the previous index as the current waypoint
+      if (current_distance > prev_distance)
+      {
+        next_index = i - 1;
+        return next_index;
+      }
+      // Update the previous distance for the next comparison
+      prev_distance = current_distance;
+    }
+    // If no increase is found, set the last waypoint as the current waypoint
+    next_index = path_size - 1;
+  }
+  return next_index;
+}
+
 // let the linear equation be "ax + by + c = 0"
 // if there are two points (x1,y1) , (x2,y2), a = "y2-y1, b = "(-1) * x2 - x1" ,c = "(-1) * (y2-y1)x1 + (x2-x1)y1"
 bool getLinearEquation(geometry_msgs::Point start, geometry_msgs::Point end, double* a, double* b, double* c)
