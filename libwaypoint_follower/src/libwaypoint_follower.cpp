@@ -242,7 +242,7 @@ public:
 };
 
 // get closest waypoint from current pose
-int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
+int getValidClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
 {
   if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
   {
@@ -266,6 +266,29 @@ int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::P
       continue;
     if (getRelativeAngle(wp.getWaypointPose(i), current_pose) > angle_threshold)
       continue;
+    cand_idx.update(i, distance);
+  }
+  return (!cand_idx.isOK()) ? not_cand_idx.result() : cand_idx.result();
+}
+
+int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
+{
+  if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
+  {
+    return -1;
+  }
+
+  WayPoints wp;
+  wp.setPath(current_path);
+
+  // search closest candidate within a certain meter
+  MinIDSearch cand_idx, not_cand_idx;
+  for (int i = 0; i < wp.getSize(); i++)
+  {
+    if (!wp.inDrivingDirection(i, current_pose))
+      continue;
+    double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
+    not_cand_idx.update(i, distance);
     cand_idx.update(i, distance);
   }
   return (!cand_idx.isOK()) ? not_cand_idx.result() : cand_idx.result();
