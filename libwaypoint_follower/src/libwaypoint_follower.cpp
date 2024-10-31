@@ -149,7 +149,7 @@ bool WayPoints::updateCurrentIndex(geometry_msgs::Pose current_pose)
     // Update current_waypoint_index_
     const int path_size = static_cast<int>(current_waypoints_.waypoints.size());
     // If no waypoints are given, do nothing.
-    if (path_size == 0)
+    if (path_size < 2)
     {
       current_waypoint_index_ = -1;
       return false;
@@ -160,10 +160,17 @@ bool WayPoints::updateCurrentIndex(geometry_msgs::Pose current_pose)
     {
       start_index = 0;  // If uninitialized, start from the beginning
     }
-    double prev_distance =
-        getPlaneDistance(current_waypoints_.waypoints.at(start_index).pose.pose.position, current_pose.position);
+    else if (start_index > 0)
+    {
+      start_index -= 1;  // If initialized, start from the previous waypoint
+    }
+    else if (start_index > path_size - 2)
+    {
+      start_index = path_size - 2;
+    }
+    double prev_distance = std::numeric_limits<double>::max();
     // Loop to find the index where the distance first starts to increase
-    for (int i = start_index + 1; i < path_size; i++)
+    for (int i = start_index; i < path_size; i++)
     {
       double current_distance =
           getPlaneDistance(current_waypoints_.waypoints.at(i).pose.pose.position, current_pose.position);
@@ -173,8 +180,11 @@ bool WayPoints::updateCurrentIndex(geometry_msgs::Pose current_pose)
         current_waypoint_index_ = i - 1;
         return true;
       }
-      // Update the previous distance for the next comparison
-      prev_distance = current_distance;
+      else
+      {
+        // Update the previous distance for the next comparison
+        prev_distance = current_distance;
+      }
     }
     // If no increase is found, set the last waypoint as the current waypoint
     current_waypoint_index_ = path_size - 1;
@@ -400,7 +410,7 @@ int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::P
   return min_idx;
 }
 
-int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
+int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
 {
   int next_index = current_index;
   if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error ||
@@ -470,10 +480,13 @@ int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose cu
     {
       start_index = 0;  // If uninitialized, start from the beginning
     }
-    double prev_distance =
-        getPlaneDistance(current_path.waypoints.at(start_index).pose.pose.position, current_pose.position);
+    else if (start_index > 1)
+    {
+      start_index -= 1;  // If initialized, start from the previous waypoint
+    }
+    double prev_distance = std::numeric_limits<double>::max();
     // Loop to find the index where the distance first starts to increase
-    for (int i = start_index + 1; i < path_size; i++)
+    for (int i = start_index; i < path_size; i++)
     {
       double current_distance =
           getPlaneDistance(current_path.waypoints.at(i).pose.pose.position, current_pose.position);
@@ -483,8 +496,11 @@ int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose cu
         next_index = i - 1;
         return next_index;
       }
-      // Update the previous distance for the next comparison
-      prev_distance = current_distance;
+      else
+      {
+        // Update the previous distance for the next comparison
+        prev_distance = current_distance;
+      }
     }
     // If no increase is found, set the last waypoint as the current waypoint
     next_index = path_size - 1;
