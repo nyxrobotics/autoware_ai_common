@@ -46,7 +46,7 @@ class WayPoints
 {
 protected:
   autoware_msgs::Lane current_waypoints_;
-  int current_waypoint_number_;
+  int current_waypoint_index_;
 
 public:
   void setPath(const autoware_msgs::Lane& waypoints)
@@ -68,11 +68,11 @@ public:
     return current_waypoints_;
   }
   bool inDrivingDirection(int waypoint, geometry_msgs::Pose current_pose) const;
-  bool updateCurrentWaypointNumber(geometry_msgs::Pose current_pose);
-  bool setCurrentWaypointNumber(int waypoint);
-  int getCurrentWaypointNumber() const
+  bool updateCurrentIndex(geometry_msgs::Pose current_pose);
+  bool setCurrentIndex(int waypoint);
+  int getCurrentIndex() const
   {
-    return current_waypoint_number_;
+    return current_waypoint_index_;
   }
 };
 

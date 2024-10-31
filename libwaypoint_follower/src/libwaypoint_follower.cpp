@@ -95,13 +95,13 @@ bool WayPoints::inDrivingDirection(int waypoint, geometry_msgs::Pose current_pos
   return (x < 0.0 && dir == LaneDirection::Backward) || (x >= 0.0 && dir == LaneDirection::Forward);
 }
 
-bool WayPoints::updateCurrentWaypointNumber(geometry_msgs::Pose current_pose)
+bool WayPoints::updateCurrentIndex(geometry_msgs::Pose current_pose)
 {
   if (current_waypoints_.waypoints.empty())
     return false;
-  if (current_waypoint_number_ == -1)
+  if (current_waypoint_index_ == -1)
   {
-    // Initialize current_waypoint_number_
+    // Initialize current_waypoint_index_
     // Get the closest point with the same direction
     int closest_waypoint = -1;
     double min_distance = std::numeric_limits<double>::max();
@@ -125,7 +125,7 @@ bool WayPoints::updateCurrentWaypointNumber(geometry_msgs::Pose current_pose)
     }
     if (closest_waypoint != -1)
     {
-      current_waypoint_number_ = closest_waypoint;
+      current_waypoint_index_ = closest_waypoint;
       return true;
     }
     // If there is no waypoint in the forward direction, find the closest waypoint
@@ -140,22 +140,22 @@ bool WayPoints::updateCurrentWaypointNumber(geometry_msgs::Pose current_pose)
     }
     if (closest_waypoint != -1)
     {
-      current_waypoint_number_ = closest_waypoint;
+      current_waypoint_index_ = closest_waypoint;
       return false;
     }
   }
   else
   {
-    // Update current_waypoint_number_
+    // Update current_waypoint_index_
     const int path_size = static_cast<int>(current_waypoints_.waypoints.size());
     // If no waypoints are given, do nothing.
     if (path_size == 0)
     {
-      current_waypoint_number_ = -1;
+      current_waypoint_index_ = -1;
       return false;
     }
     // Start searching from the current waypoint number
-    int start_index = current_waypoint_number_;
+    int start_index = current_waypoint_index_;
     if (start_index < 0)
     {
       start_index = 0;  // If uninitialized, start from the beginning
@@ -170,29 +170,29 @@ bool WayPoints::updateCurrentWaypointNumber(geometry_msgs::Pose current_pose)
       // If the distance increases, set the previous index as the current waypoint
       if (current_distance > prev_distance)
       {
-        current_waypoint_number_ = i - 1;
+        current_waypoint_index_ = i - 1;
         return true;
       }
       // Update the previous distance for the next comparison
       prev_distance = current_distance;
     }
     // If no increase is found, set the last waypoint as the current waypoint
-    current_waypoint_number_ = path_size - 1;
+    current_waypoint_index_ = path_size - 1;
   }
   return false;
 }
 
-bool WayPoints::setCurrentWaypointNumber(int waypoint)
+bool WayPoints::setCurrentIndex(int waypoint)
 {
   if (waypoint > getSize() - 1)
   {
     if (waypoint < 0)
     {
-      current_waypoint_number_ = -1;
+      current_waypoint_index_ = -1;
     }
     return false;
   }
-  current_waypoint_number_ = waypoint;
+  current_waypoint_index_ = waypoint;
   return true;
 }
 
@@ -383,16 +383,21 @@ int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::P
   wp.setPath(current_path);
 
   // search closest candidate within a certain meter
+  double min_distance = std::numeric_limits<double>::max();
+  int min_idx = 0;
   MinIDSearch cand_idx, not_cand_idx;
   for (int i = 0; i < wp.getSize(); i++)
   {
     if (!wp.inDrivingDirection(i, current_pose))
       continue;
     double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
-    not_cand_idx.update(i, distance);
-    cand_idx.update(i, distance);
+    if (distance < min_distance)
+    {
+      min_distance = distance;
+      min_idx = i;
+    }
   }
-  return (!cand_idx.isOK()) ? not_cand_idx.result() : cand_idx.result();
+  return min_idx;
 }
 
 int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
@@ -406,7 +411,7 @@ int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose cu
 
   if (current_index < 0)
   {
-    // Initialize current_waypoint_number_
+    // Initialize current_waypoint_index_
     int closest_waypoint = -1;
     double min_distance = std::numeric_limits<double>::max();
     double current_direction = tf::getYaw(current_pose.orientation);
@@ -451,7 +456,7 @@ int getNextIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose cu
   }
   else
   {
-    // Update current_waypoint_number_
+    // Update current_waypoint_index_
     const int path_size = static_cast<int>(current_path.waypoints.size());
     // If no waypoints are given, do nothing.
     if (path_size == 0)
