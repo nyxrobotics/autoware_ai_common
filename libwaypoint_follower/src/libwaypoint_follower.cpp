@@ -23,6 +23,7 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include "ros/console.h"
 
 #include "libwaypoint_follower/libwaypoint_follower.h"
 
@@ -355,8 +356,14 @@ public:
 // get closest waypoint from current pose
 int getValidClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
 {
-  if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
+  if (current_path.waypoints.size() < 2)
   {
+    ROS_WARN("waypoints size is too small (size = %lu)", current_path.waypoints.size());
+    return -1;
+  }
+  else if (getLaneDirection(current_path) == LaneDirection::Error)
+  {
+    ROS_WARN("Current path has conflicting point to lane direction");
     return -1;
   }
 
@@ -384,22 +391,19 @@ int getValidClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_ms
 
 int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
 {
-  if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
+  if (current_path.waypoints.size() < 2)
   {
+    ROS_WARN("waypoints size is too small (size = %lu)", current_path.waypoints.size());
     return -1;
   }
-
   WayPoints wp;
   wp.setPath(current_path);
-
   // search closest candidate within a certain meter
   double min_distance = std::numeric_limits<double>::max();
   int min_idx = 0;
   MinIDSearch cand_idx, not_cand_idx;
   for (int i = 0; i < wp.getSize(); i++)
   {
-    if (!wp.inDrivingDirection(i, current_pose))
-      continue;
     double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
     if (distance < min_distance)
     {
