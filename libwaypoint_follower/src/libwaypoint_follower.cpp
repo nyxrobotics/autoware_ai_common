@@ -412,7 +412,8 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       // Do not search for waypoints that do not match the direction of travel of the current position
       geometry_msgs::Pose target_pose = current_path.waypoints.at(i).pose.pose;
       geometry_msgs::Pose relative_target_pose = getRelativeTargetPose(current_pose, target_pose);
-      if (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0)
+      if (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0 ||
+          relative_target_pose.position.x * current_path.waypoints.at(i).twist.twist.linear.x < 0)
       {
         start_index += 1;
       }
