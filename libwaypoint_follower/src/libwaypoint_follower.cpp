@@ -192,7 +192,7 @@ double normalizeAngle(double angle)
 double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index)
 {
   double current_yaw = tf::getYaw(current_path.waypoints[current_index].pose.pose.orientation);
-  if (current_index > 0 && current_index < current_path.waypoints.size() - 1)
+  if (current_index > 0 && current_index < static_cast<int>(current_path.waypoints.size()) - 1)
   {
     // Obtain target point orientation angle from the behind and the front points
     // get the direction vector of the waypoint
@@ -241,7 +241,7 @@ double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index
       current_yaw = behind_to_current_yaw;
     }
   }
-  else if (current_index < current_path.waypoints.size() - 1)
+  else if (current_index < static_cast<int>(current_path.waypoints.size()) - 1)
   {
     tf::Vector3 current_to_front(current_path.waypoints[current_index + 1].pose.pose.position.x -
                                      current_path.waypoints[current_index].pose.pose.position.x,
@@ -349,7 +349,7 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
   int closest_index = -1;
   double min_distance = std::numeric_limits<double>::max();
   double robot_yaw = tf::getYaw(current_pose.orientation);
-  for (int i = 0; i < current_path.waypoints.size(); i++)
+  for (size_t i = 0; i < current_path.waypoints.size(); i++)
   {
     double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
     double waypoint_yaw = getWaypointYaw(current_path, i);
@@ -366,7 +366,7 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
     return closest_index;
   }
   // If there is no waypoint in the forward direction, find the closest waypoint
-  for (int i = 0; i < current_path.waypoints.size(); i++)
+  for (size_t i = 0; i < current_path.waypoints.size(); i++)
   {
     double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
     if (distance < min_distance)
