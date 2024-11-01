@@ -189,10 +189,9 @@ double normalizeAngle(double angle)
   return angle;
 }
 
-double getWaypointYaw(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
+double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index)
 {
-  double current_yaw = tf::getYaw(current_pose.orientation);
-  double waypoint_yaw = tf::getYaw(current_path.waypoints[current_index].pose.pose.orientation);
+  double current_yaw = tf::getYaw(current_path.waypoints[current_index].pose.pose.orientation);
   if (current_index > 0 && current_index < current_path.waypoints.size() - 1)
   {
     // Obtain target point orientation angle from the behind and the front points
@@ -345,31 +344,35 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
     ROS_WARN("waypoints size is too small (size = %lu)", current_path.waypoints.size());
     return -1;
   }
+
+  // Initialize current_waypoint_index_
   int closest_index = -1;
-  WayPoints wp;
-  wp.setPath(current_path);
-  // First, search the closest waypoint in the forward direction
-  double angle_threshold = 90;
   double min_distance = std::numeric_limits<double>::max();
-  for (int i = 0; i < wp.getSize(); i++)
+  double robot_yaw = tf::getYaw(current_pose.orientation);
+  for (int i = 0; i < current_path.waypoints.size(); i++)
   {
-    double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
-    if (distance < min_distance && getRelativeAngle(wp.getWaypointPose(i), current_pose) < angle_threshold)
+    double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+    double waypoint_yaw = getWaypointYaw(current_path, i);
+    double angle_diff = normalizeAngle(waypoint_yaw - robot_yaw);
+
+    if (distance < min_distance && fabs(angle_diff) < M_PI / 2)
     {
+      min_distance = distance;
       closest_index = i;
     }
   }
-  // If there is no waypoint in the forward direction, find the closest waypoint
-  if (closest_index == -1)
+  if (closest_index != -1)
   {
-    for (int i = 0; i < wp.getSize(); i++)
+    return closest_index;
+  }
+  // If there is no waypoint in the forward direction, find the closest waypoint
+  for (int i = 0; i < current_path.waypoints.size(); i++)
+  {
+    double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+    if (distance < min_distance)
     {
-      double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
-      if (distance < min_distance)
-      {
-        min_distance = distance;
-        closest_index = i;
-      }
+      min_distance = distance;
+      closest_index = i;
     }
   }
   return closest_index;
@@ -387,40 +390,7 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   if (current_index < 0)
   {
     // Initialize current_waypoint_index_
-    int closest_index = -1;
-    double min_distance = std::numeric_limits<double>::max();
-    double current_direction = tf::getYaw(current_pose.orientation);
-    for (int i = 0; i < current_path.waypoints.size(); i++)
-    {
-      double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
-      double waypoint_direction = tf::getYaw(current_path.waypoints[i].pose.pose.orientation);
-      double angle_diff = waypoint_direction - current_direction;
-      if (angle_diff > M_PI)
-        angle_diff -= 2 * M_PI;
-      if (angle_diff < -M_PI)
-        angle_diff += 2 * M_PI;
-
-      if (distance < min_distance && fabs(angle_diff) < M_PI / 2)
-      {
-        min_distance = distance;
-        closest_index = i;
-      }
-    }
-    if (closest_index != -1)
-    {
-      next_index = closest_index;
-    }
-    // If there is no waypoint in the forward direction, find the closest waypoint
-    for (int i = 0; i < current_path.waypoints.size(); i++)
-    {
-      double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
-      if (distance < min_distance)
-      {
-        min_distance = distance;
-        closest_index = i;
-      }
-    }
-    next_index = closest_index;
+    next_index = getClosestIndex(current_path, current_pose);
     return next_index;
   }
   else
@@ -432,11 +402,24 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
     {
       return -1;
     }
-    // Start searching from the current waypoint number
     int start_index = current_index;
     if (start_index > 1)
     {
       start_index -= 1;  // If initialized, start from the previous waypoint
+    }
+    for (int i = start_index; i < path_size; i++)
+    {
+      // Do not search for waypoints that do not match the direction of travel of the current position
+      geometry_msgs::Pose target_pose = current_path.waypoints.at(i).pose.pose;
+      geometry_msgs::Pose relative_target_pose = getRelativeTargetPose(current_pose, target_pose);
+      if (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0)
+      {
+        start_index += 1;
+      }
+      else
+      {
+        break;
+      }
     }
     double prev_distance = std::numeric_limits<double>::max();
     // Loop to find the index where the distance first starts to increase

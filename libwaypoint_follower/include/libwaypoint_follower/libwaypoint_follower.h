@@ -105,7 +105,7 @@ double getRelativeAngle(geometry_msgs::Pose waypoint_pose, geometry_msgs::Pose v
 geometry_msgs::Pose getRelativeTargetPose(const geometry_msgs::Pose& current_pose,
                                           const geometry_msgs::Pose& target_pose);
 double normalizeAngle(double angle);
-double getWaypointYaw(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index);
+double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index);
 double calcCurvature(const geometry_msgs::Point& target, const geometry_msgs::Pose& curr_pose);
 double calcDistSquared2D(const geometry_msgs::Point& p, const geometry_msgs::Point& q);
 double calcLateralError2D(const geometry_msgs::Point& a_start, const geometry_msgs::Point& a_end,
