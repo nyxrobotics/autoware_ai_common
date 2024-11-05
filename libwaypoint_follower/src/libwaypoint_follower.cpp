@@ -209,7 +209,7 @@ double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index
     double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
     double current_to_front_yaw = atan2(current_to_front.y(), current_to_front.x());
     // If the velocity is negative, the direction of the waypoint is reversed
-    if (current_path.waypoints[current_index - 1].twist.twist.linear.x < 0)
+    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
     {
       behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
     }
@@ -222,6 +222,10 @@ double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index
     {
       current_yaw = normalizeAngle(behind_to_current_yaw + angle_diff / 2);
     }
+    else
+    {
+      current_yaw = current_to_front_yaw;
+    }
   }
   else if (current_index > 0)
   {
@@ -231,15 +235,11 @@ double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index
                                       current_path.waypoints[current_index - 1].pose.pose.position.y,
                                   0);
     double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
-    if (current_path.waypoints[current_index - 1].twist.twist.linear.x < 0)
+    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
     {
       behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
     }
-    double angle_diff = normalizeAngle(behind_to_current_yaw - current_yaw);
-    if (fabs(angle_diff) < M_PI)
-    {
-      current_yaw = behind_to_current_yaw;
-    }
+    current_yaw = behind_to_current_yaw;
   }
   else if (current_index < static_cast<int>(current_path.waypoints.size()) - 1)
   {
@@ -253,11 +253,7 @@ double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index
     {
       current_to_front_yaw = normalizeAngle(current_to_front_yaw + M_PI);
     }
-    double angle_diff = normalizeAngle(current_to_front_yaw - current_yaw);
-    if (fabs(angle_diff) < M_PI)
-    {
-      current_yaw = current_to_front_yaw;
-    }
+    current_yaw = current_to_front_yaw;
   }
   return current_yaw;
 }
@@ -347,7 +343,9 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
 
   // Initialize current_waypoint_index_
   int closest_index = -1;
-  double min_distance = std::numeric_limits<double>::max();
+  static const double valid_distance = 5.0;
+  static const double valid_angle = M_PI / 2;
+  double min_distance = valid_distance;
   double robot_yaw = tf::getYaw(current_pose.orientation);
   for (size_t i = 0; i < current_path.waypoints.size(); i++)
   {
@@ -355,10 +353,15 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
     double waypoint_yaw = getWaypointYaw(current_path, i);
     double angle_diff = normalizeAngle(waypoint_yaw - robot_yaw);
 
-    if (distance < min_distance && fabs(angle_diff) < M_PI / 2)
+    if (distance < min_distance && fabs(angle_diff) < valid_angle)
     {
       min_distance = distance;
       closest_index = i;
+    }
+    else if (closest_index == -1)
+    {
+      ROS_WARN("Failed to find closest waypoint. distance: %f, waypoint_yaw: %f, robot_yaw: %f", distance, waypoint_yaw,
+               robot_yaw);
     }
   }
   if (closest_index != -1)
@@ -366,6 +369,7 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
     return closest_index;
   }
   // If there is no waypoint in the forward direction, find the closest waypoint
+  min_distance = std::numeric_limits<double>::max();
   for (size_t i = 0; i < current_path.waypoints.size(); i++)
   {
     double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
@@ -403,17 +407,32 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       return -1;
     }
     int start_index = current_index;
-    if (start_index > 1)
+    if (start_index < path_size - 1 && current_path.waypoints.at(start_index).twist.twist.linear.x *
+                                               current_path.waypoints.at(start_index + 1).twist.twist.linear.x <
+                                           0)
     {
-      start_index -= 1;  // If initialized, start from the previous waypoint
+      // When the sign changes at the immediately following point, it is the switchback point
+      // Forced to go to the next point at the switchback to avoid getting stuck due to oscillating back and forth at
+      // the switchback point
+      start_index += 1;
     }
+    else if (start_index > 1 && current_path.waypoints.at(start_index).twist.twist.linear.x *
+                                        current_path.waypoints.at(start_index - 1).twist.twist.linear.x >
+                                    0)
+    {  // If initialized, start from the previous waypoint
+      start_index -= 1;
+    }
+
     for (int i = start_index; i < path_size; i++)
     {
       // Do not search for waypoints that do not match the direction of travel of the current position
       geometry_msgs::Pose target_pose = current_path.waypoints.at(i).pose.pose;
       geometry_msgs::Pose relative_target_pose = getRelativeTargetPose(current_pose, target_pose);
-      if (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0 ||
-          relative_target_pose.position.x * current_path.waypoints.at(i).twist.twist.linear.x < 0)
+      double distance = getPlaneDistance(relative_target_pose.position, current_pose.position);
+      double max_distance = 3.0;
+      if (distance < max_distance &&
+          (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0 ||
+           relative_target_pose.position.x * current_path.waypoints.at(i).twist.twist.linear.x < 0))
       {
         start_index += 1;
       }
