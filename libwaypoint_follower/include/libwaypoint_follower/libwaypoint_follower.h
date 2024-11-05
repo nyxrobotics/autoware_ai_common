@@ -104,7 +104,6 @@ double getDistanceBetweenLineAndPoint(geometry_msgs::Point point, double sa, dou
 double getRelativeAngle(geometry_msgs::Pose waypoint_pose, geometry_msgs::Pose vehicle_pose);
 geometry_msgs::Pose getRelativeTargetPose(const geometry_msgs::Pose& current_pose,
                                           const geometry_msgs::Pose& target_pose);
-double normalizeAngle(double angle);
 double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index);
 double calcCurvature(const geometry_msgs::Point& target, const geometry_msgs::Pose& curr_pose);
 double calcDistSquared2D(const geometry_msgs::Point& p, const geometry_msgs::Point& q);
@@ -118,7 +117,7 @@ std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry
                                                       double angle_thr = M_PI_2);
 geometry_msgs::Quaternion getQuaternionFromYaw(const double& _yaw);
 bool isDirectionForward(const std::vector<geometry_msgs::Pose>& poses);
-double normalizeEulerAngle(double euler);
+double normalizeAngle(double euler);
 geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point& point,
                                                      const geometry_msgs::Pose& current_pose);
 geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point& point,

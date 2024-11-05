@@ -180,15 +180,6 @@ geometry_msgs::Pose getRelativeTargetPose(const geometry_msgs::Pose& current_pos
   return relative_pose;
 }
 
-double normalizeAngle(double angle)
-{
-  while (angle > M_PI)
-    angle -= 2.0 * M_PI;
-  while (angle < -M_PI)
-    angle += 2.0 * M_PI;
-  return angle;
-}
-
 double getWaypointYaw(const autoware_msgs::Lane& current_path, int current_index)
 {
   double current_yaw = tf::getYaw(current_path.waypoints[current_index].pose.pose.orientation);
@@ -407,20 +398,22 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       return -1;
     }
     int start_index = current_index;
-    if (start_index < path_size - 1 && current_path.waypoints.at(start_index).twist.twist.linear.x *
-                                               current_path.waypoints.at(start_index + 1).twist.twist.linear.x <
-                                           0)
+    if (start_index < path_size - 1 && start_index > 1)
     {
-      // When the sign changes at the immediately following point, it is the switchback point
-      // Forced to go to the next point at the switchback to avoid getting stuck due to oscillating back and forth at
-      // the switchback point
-      start_index += 1;
-    }
-    else if (start_index > 1 && current_path.waypoints.at(start_index).twist.twist.linear.x *
-                                        current_path.waypoints.at(start_index - 1).twist.twist.linear.x >
-                                    0)
-    {  // If initialized, start from the previous waypoint
-      start_index -= 1;
+      double prev_velocity = current_path.waypoints.at(start_index - 1).twist.twist.linear.x;
+      double current_velocity = current_path.waypoints.at(start_index).twist.twist.linear.x;
+      double next_velocity = current_path.waypoints.at(start_index + 1).twist.twist.linear.x;
+      if (current_velocity * next_velocity < 0)
+      {
+        // When the sign changes at the immediately following point, it is the switchback point
+        // Forced to go to the next point at the switchback to avoid getting stuck due to oscillating back and forth
+        // at the switchback point
+        start_index += 1;
+      }
+      else if (current_velocity * prev_velocity > 0)
+      {  // If initialized, start from the previous waypoint
+        start_index -= 1;
+      }
     }
 
     for (int i = start_index; i < path_size; i++)
@@ -613,7 +606,7 @@ std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry
 
     double yaw_pose = tf2::getYaw(curr_pose.orientation);
     double yaw_ps = tf2::getYaw(curr_ps.at(i).orientation);
-    double yaw_diff = normalizeEulerAngle(yaw_pose - yaw_ps);
+    double yaw_diff = normalizeAngle(yaw_pose - yaw_ps);
     if (std::fabs(yaw_diff) > angle_thr)
       continue;
 
@@ -641,7 +634,7 @@ bool isDirectionForward(const std::vector<geometry_msgs::Pose>& poses)
   return is_forward;
 }
 
-double normalizeEulerAngle(double euler)
+double normalizeAngle(double euler)
 {
   double res = euler;
   while (res > M_PI)
