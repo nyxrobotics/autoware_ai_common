@@ -419,13 +419,17 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
     for (int i = start_index; i < path_size; i++)
     {
       // Do not search for waypoints that do not match the direction of travel of the current position
+      double current_yaw = tf::getYaw(current_pose.orientation);
+      double target_yaw = getWaypointYaw(current_path, i);
+      double target_vel = current_path.waypoints.at(i).twist.twist.linear.x;
+      double yaw_diff = normalizeAngle(target_yaw - current_yaw);
+
       geometry_msgs::Pose target_pose = current_path.waypoints.at(i).pose.pose;
       geometry_msgs::Pose relative_target_pose = getRelativeTargetPose(current_pose, target_pose);
+
       double distance = getPlaneDistance(relative_target_pose.position, current_pose.position);
       double max_distance = 3.0;
-      if (distance < max_distance &&
-          (relative_target_pose.position.x * current_path.waypoints.at(current_index).twist.twist.linear.x < 0 ||
-           relative_target_pose.position.x * current_path.waypoints.at(i).twist.twist.linear.x < 0))
+      if (distance < max_distance && fabs(yaw_diff) < M_PI / 2 && (relative_target_pose.position.x * target_vel < 0))
       {
         start_index += 1;
       }
