@@ -407,13 +407,12 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
         double current_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
         double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
 
-        double prev_distance = getPlaneDistance(current_path.waypoints.at(i - 1).pose.pose.position,
-                                                current_path.waypoints.at(i).pose.pose.position);
-        double current_distance = getPlaneDistance(current_path.waypoints.at(i).pose.pose.position,
-                                                   current_path.waypoints.at(i + 1).pose.pose.position);
-        double next_distance = getPlaneDistance(current_path.waypoints.at(i + 1).pose.pose.position,
-                                                current_path.waypoints.at(i + 2).pose.pose.position);
-
+        double prev_distance =
+            getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
+        double current_distance =
+            getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
+        double next_distance =
+            getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
         if (current_velocity * next_velocity < 0 && start_index_offset >= 0)
         {
           // If the velocity changes its sign, the current waypoint is the next waypoint
