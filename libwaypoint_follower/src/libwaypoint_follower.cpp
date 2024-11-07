@@ -395,62 +395,92 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
     int next_index = std::min(std::max(current_index, 1), path_size - 1);
     // Update current_index
     int current_index_offset = 0;
-    for (int i = next_index; i > 0; i--)
-    {
-      double current_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
-      double current_distance =
-          getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
-      double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
-      double prev_distance =
-          getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
-      geometry_msgs::Pose prev_pose = current_path.waypoints.at(i - 1).pose.pose;
-      prev_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i - 1));
-      geometry_msgs::Pose prev2current_relative =
-          getRelativeTargetPose(prev_pose, current_path.waypoints.at(i).pose.pose);
-      if (prev_distance < current_distance && prev_velocity * current_velocity > 0 &&
-          prev2current_relative.position.x * prev_velocity > 0)
-      {
-        current_index_offset -= 1;
-        ROS_WARN("Found closer waypoint at waypoint; i=%d, current_index_offset=%d", i, current_index_offset);
-      }
-      else
-      {
-        break;
-      }
-    }
-    next_index += current_index_offset;
-    next_index = std::min(std::max(next_index, 0), path_size - 2);
-    current_index_offset = 0;
+    double current_velocity = current_path.waypoints.at(next_index).twist.twist.linear.x;
+    double current_distance =
+        getPlaneDistance(current_pose.position, current_path.waypoints.at(next_index).pose.pose.position);
     for (int i = next_index; i < path_size - 1; i++)
     {
-      double current_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
-      double current_distance =
-          getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
       double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
       double next_distance =
           getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
-
+      if (next_velocity == 0 && current_velocity != 0)
+      {
+        next_velocity = current_velocity;
+      }
+      else if (current_velocity == 0 && next_velocity != 0)
+      {
+        current_velocity = next_velocity;
+      }
       geometry_msgs::Pose current_waypoint_pose = current_path.waypoints.at(i).pose.pose;
       current_waypoint_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i));
       geometry_msgs::Pose current2next_relative =
           getRelativeTargetPose(current_waypoint_pose, current_path.waypoints.at(i + 1).pose.pose);
-
-      if (current_velocity * next_velocity < 0 || current2next_relative.position.x * current_velocity < 0)
+      if (next_distance < current_distance && current_velocity == 0)
+      {
+        current_index_offset += 1;
+      }
+      else if (current_velocity * next_velocity < 0 || current2next_relative.position.x * current_velocity < 0)
       {
         // If the velocity changes its sign, the current waypoint is the next waypoint
         // This is to avoid the case where the vehicle is at the switchback point
         current_index_offset += 1;
-        ROS_WARN("Switchback detected at waypoint; i=%d, current_index_offset=%d", i, current_index_offset);
       }
       else if (next_distance < current_distance)
       {
         current_index_offset += 1;
-        ROS_WARN("Found closer waypoint at waypoint; i=%d, current_index_offset=%d", i, current_index_offset);
       }
       else
       {
         break;
       }
+      if (next_velocity != 0)
+      {
+        current_velocity = next_velocity;
+      }
+      current_distance = next_distance;
+    }
+    if (current_index_offset > 0)
+    {
+      next_index += current_index_offset;
+      next_index = std::min(std::max(next_index, 0), path_size - 2);
+      return next_index;
+    }
+
+    for (int i = next_index; i > 0; i--)
+    {
+      double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
+      double prev_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
+      if (prev_velocity == 0 && current_velocity != 0)
+      {
+        prev_velocity = current_velocity;
+      }
+      else if (current_velocity == 0 && prev_velocity != 0)
+      {
+        current_velocity = prev_velocity;
+      }
+      geometry_msgs::Pose prev_pose = current_path.waypoints.at(i - 1).pose.pose;
+      prev_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i - 1));
+      geometry_msgs::Pose prev2current_relative =
+          getRelativeTargetPose(prev_pose, current_path.waypoints.at(i).pose.pose);
+      if (prev_distance < current_distance && current_velocity == 0)
+      {
+        current_index_offset -= 1;
+      }
+      else if (prev_distance < current_distance && prev_velocity * current_velocity >= 0 &&
+               prev2current_relative.position.x * prev_velocity > 0)
+      {
+        current_index_offset -= 1;
+      }
+      else
+      {
+        break;
+      }
+      if (prev_velocity != 0)
+      {
+        current_velocity = prev_velocity;
+      }
+      current_distance = prev_distance;
     }
     next_index += current_index_offset;
     next_index = std::min(std::max(next_index, 0), path_size - 1);
