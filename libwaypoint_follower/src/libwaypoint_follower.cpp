@@ -351,8 +351,9 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
     }
     else if (closest_index == -1)
     {
-      ROS_WARN("Failed to find closest waypoint. distance: %f, waypoint_yaw: %f, robot_yaw: %f", distance, waypoint_yaw,
-               robot_yaw);
+      // ROS_WARN("Failed to find closest waypoint. distance: %f, waypoint_yaw: %f, robot_yaw: %f", distance,
+      // waypoint_yaw,
+      //          robot_yaw);
     }
   }
   if (closest_index != -1)
@@ -392,7 +393,7 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   }
   else
   {
-    int next_index = std::min(std::max(current_index, 1), path_size - 1);
+    int next_index = std::min(std::max(current_index, 0), path_size - 2);
     // Update current_index
     int current_index_offset = 0;
     double current_velocity = current_path.waypoints.at(next_index).twist.twist.linear.x;
@@ -407,15 +408,11 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       {
         next_velocity = current_velocity;
       }
-      else if (current_velocity == 0 && next_velocity != 0)
-      {
-        current_velocity = next_velocity;
-      }
       geometry_msgs::Pose current_waypoint_pose = current_path.waypoints.at(i).pose.pose;
       current_waypoint_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i));
       geometry_msgs::Pose current2next_relative =
           getRelativeTargetPose(current_waypoint_pose, current_path.waypoints.at(i + 1).pose.pose);
-      if (next_distance < current_distance && current_velocity == 0)
+      if (next_distance < current_distance && next_velocity == 0)
       {
         current_index_offset += 1;
       }
@@ -442,10 +439,10 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
     if (current_index_offset > 0)
     {
       next_index += current_index_offset;
-      next_index = std::min(std::max(next_index, 0), path_size - 2);
+      next_index = std::min(std::max(next_index, 0), path_size - 1);
       return next_index;
     }
-
+    next_index = std::min(std::max(current_index, 1), path_size - 1);
     for (int i = next_index; i > 0; i--)
     {
       double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
@@ -455,15 +452,11 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       {
         prev_velocity = current_velocity;
       }
-      else if (current_velocity == 0 && prev_velocity != 0)
-      {
-        current_velocity = prev_velocity;
-      }
       geometry_msgs::Pose prev_pose = current_path.waypoints.at(i - 1).pose.pose;
       prev_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i - 1));
       geometry_msgs::Pose prev2current_relative =
           getRelativeTargetPose(prev_pose, current_path.waypoints.at(i).pose.pose);
-      if (prev_distance < current_distance && current_velocity == 0)
+      if (prev_distance < current_distance && prev_velocity == 0)
       {
         current_index_offset -= 1;
       }
@@ -482,9 +475,13 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       }
       current_distance = prev_distance;
     }
-    next_index += current_index_offset;
-    next_index = std::min(std::max(next_index, 0), path_size - 1);
-    return next_index;
+    if (current_index_offset < 0)
+    {
+      next_index += current_index_offset;
+      next_index = std::min(std::max(next_index, 0), path_size - 1);
+      return next_index;
+    }
+    return current_index;
   }
   ROS_WARN("Failed to update current index. Unknown error.");
   return -1;
