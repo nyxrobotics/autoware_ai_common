@@ -375,87 +375,68 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
 
 int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index)
 {
-  if (current_path.waypoints.size() < 2 || current_index > static_cast<int>(current_path.waypoints.size()) - 1)
+  const int path_size = static_cast<int>(current_path.waypoints.size());
+  if (current_index > static_cast<int>(current_path.waypoints.size()) - 1)
   {
     ROS_WARN("Failed to update current index. size: %lu, index: %d", current_path.waypoints.size(), current_index);
     return -1;
   }
-
-  int next_index = current_index;
-  if (current_index < 0)
+  else if (current_index < 0 || path_size < 3)
   {
     // Initialize current_waypoint_index_
-    next_index = getClosestIndex(current_path, current_pose);
-    return next_index;
+    return getClosestIndex(current_path, current_pose);
+  }
+  else if (current_index == path_size - 1)
+  {
+    return current_index;
   }
   else
   {
+    int next_index = std::min(std::max(1, current_index), path_size - 2);
     // Update current_waypoint_index_
-    const int path_size = static_cast<int>(current_path.waypoints.size());
-    // If no waypoints are given, do nothing.
-    if (path_size < 1)
+    int current_index_offset = 0;
+    for (int i = next_index; i < path_size - 1; i++)
     {
-      return -1;
-    }
-    int start_index = current_index;
-    if (start_index < path_size - 1 && start_index > 0)
-    {
-      int start_index_offset = 0;
-      for (int i = start_index; i < path_size - 1; i++)
-      {
-        double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
-        double current_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
-        double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
+      double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
+      double current_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
+      double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
 
-        double prev_distance =
-            getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
-        double current_distance =
-            getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
-        double next_distance =
-            getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
-        if (current_velocity * next_velocity < -std::numeric_limits<double>::epsilon() && start_index_offset >= 0)
-        {
-          // If the velocity changes its sign, the current waypoint is the next waypoint
-          // This is to avoid the case where the vehicle is at the switchback point
-          start_index_offset += 1;
-        }
-        else if (current_velocity * next_velocity > std::numeric_limits<double>::epsilon() &&
-                 next_distance < current_distance && start_index_offset >= 0)
-        {
-          start_index_offset += 1;
-        }
-        else if (prev_velocity * current_velocity > std::numeric_limits<double>::epsilon() &&
-                 prev_distance < current_distance && start_index_offset <= 0)
-        {
-          start_index_offset -= 1;
-        }
-        else
-        {
-          break;
-        }
-      }
-      start_index += start_index_offset;
-    }
-    start_index = std::min(std::max(0, start_index), path_size - 1);
-
-    double prev_distance = std::numeric_limits<double>::max();
-    // Loop to find the index where the distance first starts to increase
-    for (int i = start_index; i < path_size; i++)
-    {
+      double prev_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
       double current_distance =
-          getPlaneDistance(current_path.waypoints.at(i).pose.pose.position, current_pose.position);
-      // If the distance increases, set the previous index as the current waypoint
-      if (current_distance > prev_distance)
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
+      double next_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
+
+      geometry_msgs::Pose current_waypoint_pose = current_path.waypoints.at(i).pose.pose;
+      current_waypoint_pose.orientation = getQuaternionFromYaw(getWaypointYaw(current_path, i));
+      geometry_msgs::Pose prev2current_relative =
+          getRelativeTargetPose(current_path.waypoints.at(i - 1).pose.pose, current_waypoint_pose);
+      geometry_msgs::Pose current2next_relative =
+          getRelativeTargetPose(current_waypoint_pose, current_path.waypoints.at(i + 1).pose.pose);
+
+      if (current_index_offset >= 0 &&
+          (current_velocity * next_velocity < 0 || current2next_relative.position.x * current_velocity < 0))
       {
-        next_index = i - 1;
-        break;
+        // If the velocity changes its sign, the current waypoint is the next waypoint
+        // This is to avoid the case where the vehicle is at the switchback point
+        current_index_offset += 1;
+      }
+      else if (current_index_offset >= 0 && current_velocity * next_velocity > 0 && next_distance < current_distance)
+      {
+        current_index_offset += 1;
+      }
+      else if (current_index_offset <= 0 && prev_velocity * current_velocity > 0 && prev_distance < current_distance &&
+               prev2current_relative.position.x * prev_velocity > 0)
+      {
+        current_index_offset -= 1;
       }
       else
       {
-        // Update the previous distance for the next comparison
-        prev_distance = current_distance;
+        break;
       }
     }
+    next_index += current_index_offset;
     next_index = std::min(std::max(0, next_index), path_size - 1);
     return next_index;
   }
