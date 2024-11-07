@@ -413,17 +413,19 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
             getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
         double next_distance =
             getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
-        if (current_velocity * next_velocity < 0 && start_index_offset >= 0)
+        if (current_velocity * next_velocity < -std::numeric_limits<double>::epsilon() && start_index_offset >= 0)
         {
           // If the velocity changes its sign, the current waypoint is the next waypoint
           // This is to avoid the case where the vehicle is at the switchback point
           start_index_offset += 1;
         }
-        else if (current_velocity * next_velocity > 0 && next_distance < current_distance && start_index_offset >= 0)
+        else if (current_velocity * next_velocity > std::numeric_limits<double>::epsilon() &&
+                 next_distance < current_distance && start_index_offset >= 0)
         {
           start_index_offset += 1;
         }
-        else if (prev_velocity * current_velocity > 0 && prev_distance < current_distance && start_index_offset <= 0)
+        else if (prev_velocity * current_velocity > std::numeric_limits<double>::epsilon() &&
+                 prev_distance < current_distance && start_index_offset <= 0)
         {
           start_index_offset -= 1;
         }
