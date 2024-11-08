@@ -241,31 +241,52 @@ public:
 // get closest waypoint from current pose
 int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
 {
-  if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
+  if (current_path.waypoints.size() < 2)
   {
+    ROS_WARN("waypoints size is too small (size = %lu)", current_path.waypoints.size());
     return -1;
   }
 
-  WayPoints wp;
-  wp.setPath(current_path);
-
-  // search closest candidate within a certain meter
-  double search_distance = 5.0;
-  double angle_threshold = 90;
-  MinIDSearch cand_idx, not_cand_idx;
-  for (int i = 0; i < wp.getSize(); i++)
+  // Initialize current_waypoint_index_
+  int closest_index = -1;
+  static const double valid_distance = 5.0;
+  static const double valid_angle = M_PI / 2;
+  double min_distance = valid_distance;
+  double robot_yaw = tf::getYaw(current_pose.orientation);
+  for (size_t i = 0; i < current_path.waypoints.size(); i++)
   {
-    if (!wp.inDrivingDirection(i, current_pose))
-      continue;
-    double distance = getPlaneDistance(wp.getWaypointPosition(i), current_pose.position);
-    not_cand_idx.update(i, distance);
-    if (distance > search_distance)
-      continue;
-    if (getRelativeAngle(wp.getWaypointPose(i), current_pose) > angle_threshold)
-      continue;
-    cand_idx.update(i, distance);
+    double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+    double waypoint_yaw = getYawFromPath(current_path, i);
+    double angle_diff = normalizeAngle(waypoint_yaw - robot_yaw);
+
+    if (distance < min_distance && fabs(angle_diff) < valid_angle)
+    {
+      min_distance = distance;
+      closest_index = i;
+    }
+    else if (closest_index == -1)
+    {
+      // ROS_WARN("Failed to find closest waypoint. distance: %f, waypoint_yaw: %f, robot_yaw: %f", distance,
+      // waypoint_yaw,
+      //          robot_yaw);
+    }
   }
-  return (!cand_idx.isOK()) ? not_cand_idx.result() : cand_idx.result();
+  if (closest_index != -1)
+  {
+    return closest_index;
+  }
+  // If there is no waypoint in the forward direction, find the closest waypoint
+  min_distance = std::numeric_limits<double>::max();
+  for (size_t i = 0; i < current_path.waypoints.size(); i++)
+  {
+    double distance = getPlaneDistance(current_path.waypoints[i].pose.pose.position, current_pose.position);
+    if (distance < min_distance)
+    {
+      min_distance = distance;
+      closest_index = i;
+    }
+  }
+  return closest_index;
 }
 
 // let the linear equation be "ax + by + c = 0"
