@@ -161,25 +161,24 @@ TEST_F(LibWaypointFollowerTestSuite, inDrivingDirection)
   }
 }
 
-
-TEST_F(LibWaypointFollowerTestSuite, getClosestWaypoint)
+TEST_F(LibWaypointFollowerTestSuite, getClosestIndex)
 {
-//
-// getClosestWaypoint must return following:
-//   case) current_pose == (0,0,0)
-// - if conflict path input,                                           return -1
-// - else if no points path input,                                     return -1
-// - else if success to search valid front near points,  return nearest idx(>0)
-//   ("valid" means within distance and angle threshold)
-//   =>  if valid_forward: lane_x = {-0.5,0.5,1.5,...} and vel >= 0,   return 1
-//       if valid backward:lane_x = {1.5,0.5,-0.5,...} and vel < 0,    return 2
-// - else if success to search invalid front near points, return nearest idx(>0)
-//   =>  if over distance: lane_x = {6,7,8,9,...} and vel >= 0,        return 1
-//       if opposite lane:
-//         case) current_pose == (0,0,pi/2)
-//                         lane_x = {-0.5,0.5,1.5,...} and vel >= 0,   return 1
-// - else (fail to search front points),                               return -1
-//   =>  if pass endpoint: lane_x = {-100,...,-1} and vel >= 0,        return -1
+  //
+  // getClosestIndex must return following:
+  //   case) current_pose == (0,0,0)
+  // - if conflict path input,                                           return -1
+  // - else if no points path input,                                     return -1
+  // - else if success to search valid front near points,  return nearest idx(>0)
+  //   ("valid" means within distance and angle threshold)
+  //   =>  if valid_forward: lane_x = {-0.5,0.5,1.5,...} and vel >= 0,   return 1
+  //       if valid backward:lane_x = {1.5,0.5,-0.5,...} and vel < 0,    return 2
+  // - else if success to search invalid front near points, return nearest idx(>0)
+  //   =>  if over distance: lane_x = {6,7,8,9,...} and vel >= 0,        return 1
+  //       if opposite lane:
+  //         case) current_pose == (0,0,pi/2)
+  //                         lane_x = {-0.5,0.5,1.5,...} and vel >= 0,   return 1
+  // - else (fail to search front points),                               return -1
+  //   =>  if pass endpoint: lane_x = {-100,...,-1} and vel >= 0,        return -1
 
   geometry_msgs::PoseStamped valid_pose = test_obj_.generateCurrentPose(0, 0, 0);
   geometry_msgs::PoseStamped invalid_pose = test_obj_.generateCurrentPose(0, 0, M_PI / 2.0);
@@ -196,7 +195,7 @@ TEST_F(LibWaypointFollowerTestSuite, getClosestWaypoint)
   {
     const ClosestCheckDataSet& data = el.second.first;
     const auto& lane = test_obj_.generateOffsetLane(data.dir, data.vel, data.offset, data.num);
-    int ret = getClosestWaypoint(lane, data.pose.pose);
+    int ret = getClosestIndex(lane, data.pose.pose);
     ASSERT_EQ(ret, el.second.second)
       << "Failure in " << el.first << ", it must be " << el.second.second << ".";
   }

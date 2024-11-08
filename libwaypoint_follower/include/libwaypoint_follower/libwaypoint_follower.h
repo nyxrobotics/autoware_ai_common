@@ -96,7 +96,7 @@ double getPlaneDistance(geometry_msgs::Point target1,
 LaneDirection getLaneDirection(const autoware_msgs::Lane& current_path);
 LaneDirection getLaneDirectionByPosition(const autoware_msgs::Lane& current_path);
 LaneDirection getLaneDirectionByVelocity(const autoware_msgs::Lane& current_path);
-int getClosestWaypoint(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose);
+int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose);
 bool getLinearEquation(geometry_msgs::Point start, geometry_msgs::Point end, double* a, double* b, double* c);
 double getDistanceBetweenLineAndPoint(geometry_msgs::Point point, double sa, double b, double c);
 double getRelativeAngle(geometry_msgs::Pose waypoint_pose, geometry_msgs::Pose vehicle_pose);

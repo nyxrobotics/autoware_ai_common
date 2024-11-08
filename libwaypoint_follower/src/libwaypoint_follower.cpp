@@ -239,7 +239,7 @@ public:
 };
 
 // get closest waypoint from current pose
-int getClosestWaypoint(const autoware_msgs::Lane &current_path, geometry_msgs::Pose current_pose)
+int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose)
 {
   if (current_path.waypoints.size() < 2 || getLaneDirection(current_path) == LaneDirection::Error)
   {
