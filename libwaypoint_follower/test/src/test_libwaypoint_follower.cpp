@@ -387,12 +387,12 @@ TEST_F(LibWaypointFollowerTestSuite, isDirectionForward)
   ASSERT_EQ(false, isDirectionForward(poses));
 }
 
-TEST_F(LibWaypointFollowerTestSuite, normalizeEulerAngle)
+TEST_F(LibWaypointFollowerTestSuite, normalizeAngle)
 {
-  ASSERT_DOUBLE_EQ(M_PI, normalizeEulerAngle(3 * M_PI));
-  ASSERT_DOUBLE_EQ(-M_PI, normalizeEulerAngle(-3 * M_PI));
-  ASSERT_DOUBLE_EQ(-M_PI + 0.1, normalizeEulerAngle(M_PI + 0.1));
-  ASSERT_DOUBLE_EQ(M_PI - 0.2, normalizeEulerAngle(-M_PI - 0.2));
+  ASSERT_DOUBLE_EQ(M_PI, normalizeAngle(3 * M_PI));
+  ASSERT_DOUBLE_EQ(-M_PI, normalizeAngle(-3 * M_PI));
+  ASSERT_DOUBLE_EQ(-M_PI + 0.1, normalizeAngle(M_PI + 0.1));
+  ASSERT_DOUBLE_EQ(M_PI - 0.2, normalizeAngle(-M_PI - 0.2));
 }
 
 TEST_F(LibWaypointFollowerTestSuite, transformToAbsoluteCoordinate2D)

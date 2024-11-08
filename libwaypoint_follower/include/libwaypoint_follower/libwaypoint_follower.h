@@ -113,7 +113,7 @@ std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry
                                                       double angle_thr = M_PI_2);
 geometry_msgs::Quaternion getQuaternionFromYaw(const double &_yaw);
 bool isDirectionForward(const std::vector<geometry_msgs::Pose> &poses);
-double normalizeEulerAngle(double euler);
+double normalizeAngle(double radians);
 geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point &point,
                                                                       const geometry_msgs::Pose &current_pose);
 geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point &point,

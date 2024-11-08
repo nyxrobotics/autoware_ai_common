@@ -408,7 +408,7 @@ std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry
 
     double yaw_pose = tf2::getYaw(curr_pose.orientation);
     double yaw_ps = tf2::getYaw(curr_ps.at(i).orientation);
-    double yaw_diff = normalizeEulerAngle(yaw_pose - yaw_ps);
+    double yaw_diff = normalizeAngle(yaw_pose - yaw_ps);
     if (std::fabs(yaw_diff) > angle_thr)
       continue;
 
@@ -436,9 +436,9 @@ bool isDirectionForward(const std::vector<geometry_msgs::Pose> &poses)
   return is_forward;
 }
 
-double normalizeEulerAngle(double euler)
+double normalizeAngle(double radians)
 {
-  double res = euler;
+  double res = radians;
   while (res > M_PI)
   {
     res -= (2.0 * M_PI);
