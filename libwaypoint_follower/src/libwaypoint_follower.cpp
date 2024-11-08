@@ -625,3 +625,15 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   }
   return -1;
 }
+
+geometry_msgs::Pose getRelativePose(const geometry_msgs::Pose& current_pose, const geometry_msgs::Pose& target_pose)
+{
+  geometry_msgs::Pose relative_pose;
+  tf::Transform current_tf;
+  tf::poseMsgToTF(current_pose, current_tf);
+  tf::Transform target_tf;
+  tf::poseMsgToTF(target_pose, target_tf);
+  tf::Transform relative_tf = current_tf.inverse() * target_tf;
+  tf::poseTFToMsg(relative_tf, relative_pose);
+  return relative_pose;
+}
