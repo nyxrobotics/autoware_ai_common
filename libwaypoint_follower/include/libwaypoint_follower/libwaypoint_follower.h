@@ -125,4 +125,5 @@ geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point 
 
 int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index);
 geometry_msgs::Pose getRelativePose(const geometry_msgs::Pose& current_pose, const geometry_msgs::Pose& target_pose);
+double getYawFromPath(const autoware_msgs::Lane& current_path, int current_index);
 #endif  // LIBWAYPOINT_FOLLOWER_LIBWAYPOINT_FOLLOWER_H

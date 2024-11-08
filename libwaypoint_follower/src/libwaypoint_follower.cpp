@@ -637,3 +637,72 @@ geometry_msgs::Pose getRelativePose(const geometry_msgs::Pose& current_pose, con
   tf::poseTFToMsg(relative_tf, relative_pose);
   return relative_pose;
 }
+
+double getYawFromPath(const autoware_msgs::Lane& current_path, int current_index)
+{
+  double current_yaw = tf::getYaw(current_path.waypoints[current_index].pose.pose.orientation);
+  if (current_index > 0 && current_index < static_cast<int>(current_path.waypoints.size()) - 1)
+  {
+    // Obtain target point orientation angle from the behind and the front points
+    // get the direction vector of the waypoint
+    tf::Vector3 behind_to_current(current_path.waypoints[current_index].pose.pose.position.x -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.x,
+                                  current_path.waypoints[current_index].pose.pose.position.y -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.y,
+                                  0);
+    tf::Vector3 current_to_front(current_path.waypoints[current_index + 1].pose.pose.position.x -
+                                     current_path.waypoints[current_index].pose.pose.position.x,
+                                 current_path.waypoints[current_index + 1].pose.pose.position.y -
+                                     current_path.waypoints[current_index].pose.pose.position.y,
+                                 0);
+    double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
+    double current_to_front_yaw = atan2(current_to_front.y(), current_to_front.x());
+    // If the velocity is negative, the direction of the waypoint is reversed
+    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
+    {
+      behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
+    }
+    if (current_path.waypoints[current_index + 1].twist.twist.linear.x < 0)
+    {
+      current_to_front_yaw = normalizeAngle(current_to_front_yaw + M_PI);
+    }
+    double angle_diff = normalizeAngle(current_to_front_yaw - behind_to_current_yaw);
+    if (fabs(angle_diff) < M_PI)
+    {
+      current_yaw = normalizeAngle(behind_to_current_yaw + angle_diff / 2);
+    }
+    else
+    {
+      current_yaw = current_to_front_yaw;
+    }
+  }
+  else if (current_index > 0)
+  {
+    tf::Vector3 behind_to_current(current_path.waypoints[current_index].pose.pose.position.x -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.x,
+                                  current_path.waypoints[current_index].pose.pose.position.y -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.y,
+                                  0);
+    double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
+    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
+    {
+      behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
+    }
+    current_yaw = behind_to_current_yaw;
+  }
+  else if (current_index < static_cast<int>(current_path.waypoints.size()) - 1)
+  {
+    tf::Vector3 current_to_front(current_path.waypoints[current_index + 1].pose.pose.position.x -
+                                     current_path.waypoints[current_index].pose.pose.position.x,
+                                 current_path.waypoints[current_index + 1].pose.pose.position.y -
+                                     current_path.waypoints[current_index].pose.pose.position.y,
+                                 0);
+    double current_to_front_yaw = atan2(current_to_front.y(), current_to_front.x());
+    if (current_path.waypoints[current_index + 1].twist.twist.linear.x < 0)
+    {
+      current_to_front_yaw = normalizeAngle(current_to_front_yaw + M_PI);
+    }
+    current_yaw = current_to_front_yaw;
+  }
+  return current_yaw;
+}
