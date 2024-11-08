@@ -123,4 +123,5 @@ geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point 
 geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point &point,
                                                                       const geometry_msgs::Pose &current_pose);
 
+int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index);
 #endif  // LIBWAYPOINT_FOLLOWER_LIBWAYPOINT_FOLLOWER_H
