@@ -34,6 +34,7 @@
 #include <autoware_msgs/Lane.h>
 
 constexpr double ERROR = 1e-6;
+constexpr double LOST_DISTANCE = 6.0;
 
 enum class LaneDirection : int
 {
@@ -100,28 +101,27 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
 bool getLinearEquation(geometry_msgs::Point start, geometry_msgs::Point end, double* a, double* b, double* c);
 double getDistanceBetweenLineAndPoint(geometry_msgs::Point point, double sa, double b, double c);
 double getRelativeAngle(geometry_msgs::Pose waypoint_pose, geometry_msgs::Pose vehicle_pose);
-double calcCurvature(const geometry_msgs::Point &target, const geometry_msgs::Pose &curr_pose);
-double calcDistSquared2D(const geometry_msgs::Point &p, const geometry_msgs::Point &q);
-double calcLateralError2D(const geometry_msgs::Point &a_start, const geometry_msgs::Point &a_end,
-                          const geometry_msgs::Point &b);
-double calcRadius(const geometry_msgs::Point &target, const geometry_msgs::Pose &current_pose);
-std::vector<geometry_msgs::Pose> extractPoses(const autoware_msgs::Lane &lane);
-std::vector<geometry_msgs::Pose> extractPoses(const std::vector<autoware_msgs::Waypoint> &wps);
-std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry_msgs::Pose> &curr_ps,
-                                                      const geometry_msgs::Pose &curr_pose,
-                                                      double dist_thr = 3.0,
+double calcCurvature(const geometry_msgs::Point& target, const geometry_msgs::Pose& curr_pose);
+double calcDistSquared2D(const geometry_msgs::Point& p, const geometry_msgs::Point& q);
+double calcLateralError2D(const geometry_msgs::Point& a_start, const geometry_msgs::Point& a_end,
+                          const geometry_msgs::Point& b);
+double calcRadius(const geometry_msgs::Point& target, const geometry_msgs::Pose& current_pose);
+std::vector<geometry_msgs::Pose> extractPoses(const autoware_msgs::Lane& lane);
+std::vector<geometry_msgs::Pose> extractPoses(const std::vector<autoware_msgs::Waypoint>& wps);
+std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry_msgs::Pose>& curr_ps,
+                                                      const geometry_msgs::Pose& curr_pose, double dist_thr = 3.0,
                                                       double angle_thr = M_PI_2);
-geometry_msgs::Quaternion getQuaternionFromYaw(const double &_yaw);
-bool isDirectionForward(const std::vector<geometry_msgs::Pose> &poses);
+geometry_msgs::Quaternion getQuaternionFromYaw(const double& _yaw);
+bool isDirectionForward(const std::vector<geometry_msgs::Pose>& poses);
 double normalizeAngle(double radians);
-geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &current_pose);
-geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &origin);
-geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &current_pose);
-geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &current_pose);
+geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& current_pose);
+geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& origin);
+geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& current_pose);
+geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& current_pose);
 
 int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose current_pose, int current_index);
 geometry_msgs::Pose getRelativePose(const geometry_msgs::Pose& current_pose, const geometry_msgs::Pose& target_pose);

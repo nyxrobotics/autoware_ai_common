@@ -171,7 +171,7 @@ LaneDirection getLaneDirection(const autoware_msgs::Lane& current_path)
   const LaneDirection pos_ret = getLaneDirectionByPosition(current_path);
   const LaneDirection vel_ret = getLaneDirectionByVelocity(current_path);
   const bool is_conflict =
-    (pos_ret != vel_ret) && (pos_ret != LaneDirection::Error) && (vel_ret != LaneDirection::Error);
+      (pos_ret != vel_ret) && (pos_ret != LaneDirection::Error) && (vel_ret != LaneDirection::Error);
   return is_conflict ? LaneDirection::Error : (pos_ret != LaneDirection::Error) ? pos_ret : vel_ret;
 }
 
@@ -218,8 +218,11 @@ class MinIDSearch
 private:
   double val_min_;
   int idx_min_;
+
 public:
-  MinIDSearch() : val_min_(DBL_MAX), idx_min_(-1) {}
+  MinIDSearch() : val_min_(DBL_MAX), idx_min_(-1)
+  {
+  }
   void update(int index, double v)
   {
     if (v < val_min_)
@@ -249,7 +252,7 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
 
   // Initialize current_waypoint_index_
   int closest_index = -1;
-  static const double valid_distance = 5.0;
+  static const double valid_distance = LOST_DISTANCE;
   static const double valid_angle = M_PI / 2;
   double min_distance = valid_distance;
   double robot_yaw = tf::getYaw(current_pose.orientation);
@@ -291,7 +294,7 @@ int getClosestIndex(const autoware_msgs::Lane& current_path, geometry_msgs::Pose
 
 // let the linear equation be "ax + by + c = 0"
 // if there are two points (x1,y1) , (x2,y2), a = "y2-y1, b = "(-1) * x2 - x1" ,c = "(-1) * (y2-y1)x1 + (x2-x1)y1"
-bool getLinearEquation(geometry_msgs::Point start, geometry_msgs::Point end, double *a, double *b, double *c)
+bool getLinearEquation(geometry_msgs::Point start, geometry_msgs::Point end, double* a, double* b, double* c)
 {
   // (x1, y1) = (start.x, star.y), (x2, y2) = (end.x, end.y)
   double sub_x = std::fabs(start.x - end.x);
@@ -349,7 +352,7 @@ geometry_msgs::Point rotatePoint(geometry_msgs::Point point, double degree)
   return rotate;
 }
 
-double calcCurvature(const geometry_msgs::Point &target, const geometry_msgs::Pose &curr_pose)
+double calcCurvature(const geometry_msgs::Point& target, const geometry_msgs::Pose& curr_pose)
 {
   constexpr double KAPPA_MAX = 1e9;
   const double radius = calcRadius(target, curr_pose);
@@ -364,15 +367,15 @@ double calcCurvature(const geometry_msgs::Point &target, const geometry_msgs::Po
   }
 }
 
-double calcDistSquared2D(const geometry_msgs::Point &p, const geometry_msgs::Point &q)
+double calcDistSquared2D(const geometry_msgs::Point& p, const geometry_msgs::Point& q)
 {
   const double dx = p.x - q.x;
   const double dy = p.y - q.y;
   return (dx * dx + dy * dy);
 }
 
-double calcLateralError2D(const geometry_msgs::Point &line_s, const geometry_msgs::Point &line_e,
-                          const geometry_msgs::Point &point)
+double calcLateralError2D(const geometry_msgs::Point& line_s, const geometry_msgs::Point& line_e,
+                          const geometry_msgs::Point& point)
 {
   tf2::Vector3 a_vec((line_e.x - line_s.x), (line_e.y - line_s.y), 0.0);
   tf2::Vector3 b_vec((point.x - line_s.x), (point.y - line_s.y), 0.0);
@@ -381,7 +384,7 @@ double calcLateralError2D(const geometry_msgs::Point &line_s, const geometry_msg
   return lat_err;
 }
 
-double calcRadius(const geometry_msgs::Point &target, const geometry_msgs::Pose &current_pose)
+double calcRadius(const geometry_msgs::Point& target, const geometry_msgs::Pose& current_pose)
 {
   constexpr double RADIUS_MAX = 1e9;
   const double denominator = 2.0 * transformToRelativeCoordinate2D(target, current_pose).y;
@@ -393,29 +396,28 @@ double calcRadius(const geometry_msgs::Point &target, const geometry_msgs::Pose 
     return RADIUS_MAX;
 }
 
-std::vector<geometry_msgs::Pose> extractPoses(const autoware_msgs::Lane &lane)
+std::vector<geometry_msgs::Pose> extractPoses(const autoware_msgs::Lane& lane)
 {
   std::vector<geometry_msgs::Pose> poses;
 
-  for (const auto &el : lane.waypoints)
+  for (const auto& el : lane.waypoints)
     poses.push_back(el.pose.pose);
 
   return poses;
 }
 
-std::vector<geometry_msgs::Pose> extractPoses(const std::vector<autoware_msgs::Waypoint> &wps)
+std::vector<geometry_msgs::Pose> extractPoses(const std::vector<autoware_msgs::Waypoint>& wps)
 {
   std::vector<geometry_msgs::Pose> poses;
 
-  for (const auto &el : wps)
+  for (const auto& el : wps)
     poses.push_back(el.pose.pose);
 
   return poses;
 }
 
-std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry_msgs::Pose> &curr_ps,
-                                                      const geometry_msgs::Pose &curr_pose,
-                                                      double dist_thr,
+std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry_msgs::Pose>& curr_ps,
+                                                      const geometry_msgs::Pose& curr_pose, double dist_thr,
                                                       double angle_thr)
 {
   double dist_squared_min = std::numeric_limits<double>::max();
@@ -443,14 +445,14 @@ std::pair<bool, int32_t> findClosestIdxWithDistAngThr(const std::vector<geometry
   return (idx_min >= 0) ? std::make_pair(true, idx_min) : std::make_pair(false, idx_min);
 }
 
-geometry_msgs::Quaternion getQuaternionFromYaw(const double &_yaw)
+geometry_msgs::Quaternion getQuaternionFromYaw(const double& _yaw)
 {
   tf2::Quaternion q;
   q.setRPY(0, 0, _yaw);
   return tf2::toMsg(q);
 }
 
-bool isDirectionForward(const std::vector<geometry_msgs::Pose> &poses)
+bool isDirectionForward(const std::vector<geometry_msgs::Pose>& poses)
 {
   geometry_msgs::Point rel_p = transformToRelativeCoordinate2D(poses.at(2).position, poses.at(1));
   bool is_forward = (rel_p.x > 0.0) ? true : false;
@@ -472,8 +474,8 @@ double normalizeAngle(double radians)
   return res;
 }
 
-geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &origin)
+geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& origin)
 {
   // rotation
   geometry_msgs::Point rot_p;
@@ -490,8 +492,8 @@ geometry_msgs::Point transformToAbsoluteCoordinate2D(const geometry_msgs::Point 
   return res;
 }
 
-geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &origin)
+geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& origin)
 {
   Eigen::Translation3d trans(origin.position.x, origin.position.y, origin.position.z);
   Eigen::Quaterniond rot(origin.orientation.w, origin.orientation.x, origin.orientation.y, origin.orientation.z);
@@ -504,8 +506,8 @@ geometry_msgs::Point transformToAbsoluteCoordinate3D(const geometry_msgs::Point 
   return transformed_p;
 }
 
-geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &origin)
+geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& origin)
 {
   // translation
   geometry_msgs::Point trans_p;
@@ -523,8 +525,8 @@ geometry_msgs::Point transformToRelativeCoordinate2D(const geometry_msgs::Point 
   return res;
 }
 
-geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point &point,
-                                                                      const geometry_msgs::Pose &origin)
+geometry_msgs::Point transformToRelativeCoordinate3D(const geometry_msgs::Point& point,
+                                                     const geometry_msgs::Pose& origin)
 {
   Eigen::Translation3d trans(-origin.position.x, -origin.position.y, -origin.position.z);
   Eigen::Quaterniond rot(origin.orientation.w, origin.orientation.x, origin.orientation.y, origin.orientation.z);
@@ -561,6 +563,10 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
     double current_velocity = current_path.waypoints.at(next_index).twist.twist.linear.x;
     double current_distance =
         getPlaneDistance(current_pose.position, current_path.waypoints.at(next_index).pose.pose.position);
+    if (current_distance > LOST_DISTANCE)
+    {
+      return getClosestIndex(current_path, current_pose);
+    }
     for (int i = next_index; i < path_size - 1; i++)
     {
       double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
