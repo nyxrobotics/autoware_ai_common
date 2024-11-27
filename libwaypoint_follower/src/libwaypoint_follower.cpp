@@ -23,6 +23,7 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include "ros/console.h"
 
 #include "libwaypoint_follower/libwaypoint_follower.h"
 
@@ -544,11 +545,17 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   const int path_size = static_cast<int>(current_path.waypoints.size());
   if (current_index > static_cast<int>(current_path.waypoints.size()) - 1)
   {
+    ROS_ERROR("current_index is out of range");
     return -1;
   }
   else if (current_index < 0 || path_size < 3)
   {
     // Initialize current_index
+    return getClosestIndex(current_path, current_pose);
+  }
+  else if (getPlaneDistance(current_pose.position, current_path.waypoints.at(current_index).pose.pose.position) >
+           LOST_DISTANCE)
+  {
     return getClosestIndex(current_path, current_pose);
   }
   else if (current_index == path_size - 1)
@@ -557,40 +564,36 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   }
   else
   {
-    int next_index = std::min(std::max(current_index, 0), path_size - 2);
     // Update current_index
     int current_index_offset = 0;
-    double current_velocity = current_path.waypoints.at(next_index).twist.twist.linear.x;
-    double current_distance =
-        getPlaneDistance(current_pose.position, current_path.waypoints.at(next_index).pose.pose.position);
-    if (current_distance > LOST_DISTANCE)
+    for (int i = current_index; i < path_size - 1; i++)
     {
-      return getClosestIndex(current_path, current_pose);
-    }
-    for (int i = next_index; i < path_size - 1; i++)
-    {
-      double next_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
-      double next_distance =
-          getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
-      if (next_velocity == 0 && current_velocity != 0)
-      {
-        next_velocity = current_velocity;
-      }
+      double current_waypoint_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
       geometry_msgs::Pose current_waypoint_pose = current_path.waypoints.at(i).pose.pose;
       current_waypoint_pose.orientation = getQuaternionFromYaw(getYawFromPath(current_path, i));
+      double next_waypoint_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
       geometry_msgs::Pose current2next_relative =
           getRelativePose(current_waypoint_pose, current_path.waypoints.at(i + 1).pose.pose);
-      if (next_distance < current_distance && next_velocity == 0)
-      {
-        current_index_offset += 1;
-      }
-      else if (current_velocity * next_velocity < 0 || current2next_relative.position.x * current_velocity < 0)
+      if (current_waypoint_velocity * next_waypoint_velocity < 0 ||
+          current2next_relative.position.x * current_waypoint_velocity < 0 ||
+          current2next_relative.position.x * next_waypoint_velocity < 0)
       {
         // If the velocity changes its sign, the current waypoint is the next waypoint
         // This is to avoid the case where the vehicle is at the switchback point
         current_index_offset += 1;
       }
-      else if (next_distance < current_distance)
+      else
+      {
+        break;
+      }
+    }
+    for (int i = current_index + current_index_offset; i < path_size - 1; i++)
+    {
+      double current_waypoint_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
+      double next_waypoint_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i + 1).pose.pose.position);
+      if (next_waypoint_distance < current_waypoint_distance)
       {
         current_index_offset += 1;
       }
@@ -598,37 +601,30 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       {
         break;
       }
-      if (next_velocity != 0)
-      {
-        current_velocity = next_velocity;
-      }
-      current_distance = next_distance;
     }
     if (current_index_offset > 0)
     {
-      next_index += current_index_offset;
+      int next_index = current_index + current_index_offset;
       next_index = std::min(std::max(next_index, 0), path_size - 1);
       return next_index;
     }
-    next_index = std::min(std::max(current_index, 1), path_size - 1);
-    for (int i = next_index; i > 0; i--)
+    for (int i = current_index; i > 0; i--)
     {
-      double prev_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
-      double prev_distance =
+      double current_waypoint_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
+      double current_waypoint_distance =
+          getPlaneDistance(current_pose.position, current_path.waypoints.at(i).pose.pose.position);
+      geometry_msgs::Pose prev_waypoint_pose = current_path.waypoints.at(i - 1).pose.pose;
+      prev_waypoint_pose.orientation = getQuaternionFromYaw(getYawFromPath(current_path, i));
+      double prev_waypoint_velocity = current_path.waypoints.at(i - 1).twist.twist.linear.x;
+      double prev_waypoint_distance =
           getPlaneDistance(current_pose.position, current_path.waypoints.at(i - 1).pose.pose.position);
-      if (prev_velocity == 0 && current_velocity != 0)
-      {
-        prev_velocity = current_velocity;
-      }
-      geometry_msgs::Pose prev_pose = current_path.waypoints.at(i - 1).pose.pose;
-      prev_pose.orientation = getQuaternionFromYaw(getYawFromPath(current_path, i - 1));
-      geometry_msgs::Pose prev2current_relative = getRelativePose(prev_pose, current_path.waypoints.at(i).pose.pose);
-      if (prev_distance < current_distance && prev_velocity == 0)
-      {
-        current_index_offset -= 1;
-      }
-      else if (prev_distance < current_distance && prev_velocity * current_velocity >= 0 &&
-               prev2current_relative.position.x * prev_velocity > 0)
+      geometry_msgs::Pose prev2current_relative =
+          getRelativePose(prev_waypoint_pose, current_path.waypoints.at(i).pose.pose);
+      double prev2current_yaw = tf::getYaw(prev2current_relative.orientation);
+      if (prev_waypoint_distance < current_waypoint_distance &&
+          prev_waypoint_velocity * current_waypoint_velocity > 0 &&
+          prev2current_relative.position.x * prev_waypoint_velocity > 0 &&
+          prev2current_relative.position.x * current_waypoint_velocity > 0 && fabs(prev2current_yaw) < M_PI * 0.5)
       {
         current_index_offset -= 1;
       }
@@ -636,15 +632,10 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       {
         break;
       }
-      if (prev_velocity != 0)
-      {
-        current_velocity = prev_velocity;
-      }
-      current_distance = prev_distance;
     }
     if (current_index_offset < 0)
     {
-      next_index += current_index_offset;
+      int next_index = current_index + current_index_offset;
       next_index = std::min(std::max(next_index, 0), path_size - 1);
       return next_index;
     }
@@ -703,20 +694,6 @@ double getYawFromPath(const autoware_msgs::Lane& current_path, int current_index
       current_yaw = current_to_front_yaw;
     }
   }
-  else if (current_index > 0)
-  {
-    tf::Vector3 behind_to_current(current_path.waypoints[current_index].pose.pose.position.x -
-                                      current_path.waypoints[current_index - 1].pose.pose.position.x,
-                                  current_path.waypoints[current_index].pose.pose.position.y -
-                                      current_path.waypoints[current_index - 1].pose.pose.position.y,
-                                  0);
-    double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
-    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
-    {
-      behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
-    }
-    current_yaw = behind_to_current_yaw;
-  }
   else if (current_index < static_cast<int>(current_path.waypoints.size()) - 1)
   {
     tf::Vector3 current_to_front(current_path.waypoints[current_index + 1].pose.pose.position.x -
@@ -730,6 +707,20 @@ double getYawFromPath(const autoware_msgs::Lane& current_path, int current_index
       current_to_front_yaw = normalizeAngle(current_to_front_yaw + M_PI);
     }
     current_yaw = current_to_front_yaw;
+  }
+  else if (current_index > 0)
+  {
+    tf::Vector3 behind_to_current(current_path.waypoints[current_index].pose.pose.position.x -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.x,
+                                  current_path.waypoints[current_index].pose.pose.position.y -
+                                      current_path.waypoints[current_index - 1].pose.pose.position.y,
+                                  0);
+    double behind_to_current_yaw = atan2(behind_to_current.y(), behind_to_current.x());
+    if (current_path.waypoints[current_index].twist.twist.linear.x < 0)
+    {
+      behind_to_current_yaw = normalizeAngle(behind_to_current_yaw + M_PI);
+    }
+    current_yaw = behind_to_current_yaw;
   }
   return current_yaw;
 }
