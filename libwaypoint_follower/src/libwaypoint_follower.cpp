@@ -621,10 +621,13 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       geometry_msgs::Pose prev2current_relative =
           getRelativePose(prev_waypoint_pose, current_path.waypoints.at(i).pose.pose);
       double prev2current_yaw = tf::getYaw(prev2current_relative.orientation);
+      double prev_yaw_relative =
+          normalizeAngle(tf::getYaw(prev_waypoint_pose.orientation) - tf::getYaw(current_pose.orientation));
       if (prev_waypoint_distance < current_waypoint_distance &&
           prev_waypoint_velocity * current_waypoint_velocity > 0 &&
           prev2current_relative.position.x * prev_waypoint_velocity > 0 &&
-          prev2current_relative.position.x * current_waypoint_velocity > 0 && fabs(prev2current_yaw) < M_PI * 0.5)
+          prev2current_relative.position.x * current_waypoint_velocity > 0 && fabs(prev2current_yaw) < M_PI * 0.5 &&
+          fabs(prev_yaw_relative) < M_PI * 0.5)
       {
         current_index_offset -= 1;
       }
