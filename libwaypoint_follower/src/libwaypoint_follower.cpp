@@ -571,12 +571,9 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
       double current_waypoint_velocity = current_path.waypoints.at(i).twist.twist.linear.x;
       geometry_msgs::Pose current_waypoint_pose = current_path.waypoints.at(i).pose.pose;
       current_waypoint_pose.orientation = getQuaternionFromYaw(getYawFromPath(current_path, i));
-      double next_waypoint_velocity = current_path.waypoints.at(i + 1).twist.twist.linear.x;
       geometry_msgs::Pose current2next_relative =
           getRelativePose(current_waypoint_pose, current_path.waypoints.at(i + 1).pose.pose);
-      if (current_waypoint_velocity * next_waypoint_velocity < 0 ||
-          current2next_relative.position.x * current_waypoint_velocity < 0 ||
-          current2next_relative.position.x * next_waypoint_velocity < 0)
+      if (current2next_relative.position.x * current_waypoint_velocity < 0)
       {
         // If the velocity changes its sign, the current waypoint is the next waypoint
         // This is to avoid the case where the vehicle is at the switchback point
